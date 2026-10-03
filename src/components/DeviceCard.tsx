@@ -34,7 +34,7 @@ export function DeviceCard({ device }: { device: Device }) {
     try {
       const r = await sendDeviceCommand({ data: { deviceId: device.id, command, value } });
       if (!r.ok) toast.error(`${device.name}: ${r.reason}`);
-      else if (r.pending) toast.message(`${device.name}: command delivered, awaiting confirmation`);
+      else if ("pending" in r && r.pending) toast.message(`${device.name}: command delivered, awaiting confirmation`);
     } catch (e) {
       toast.error("Command failed to send");
     } finally {
@@ -78,7 +78,7 @@ export function DeviceCard({ device }: { device: Device }) {
           <div className="mt-auto space-y-3 rounded-xl bg-secondary px-4 py-3">
             <div className="flex justify-between text-sm"><span>Level</span><span className="tabular">{val}</span></div>
             {device.control_type === "slider" ? (
-              <Slider value={[val]} max={100} step={1} onValueChange={(v) => setVal(v[0])} onValueCommit={(v) => send("SET", v[0])} disabled={pending} />
+              <Slider value={[val]} max={100} step={1} onValueChange={(v) => setVal(v[0] ?? 0)} onValueCommit={(v) => send("SET", v[0])} disabled={pending} />
             ) : (
               <div className="flex gap-2">
                 <Input type="number" value={val} onChange={(e) => setVal(Number(e.target.value))} />
