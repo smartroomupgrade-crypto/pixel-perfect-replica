@@ -78,7 +78,7 @@ export function SensorsSection() {
             <div className="grid gap-4 sm:grid-cols-2">
               {!edit.id && (
                 <Field label="Start from a preset" full>
-                  <Select onValueChange={(i) => { const p = SENSOR_PRESETS[Number(i)]; setEdit({ ...edit, name: p.name, sensor_type: p.type, unit: p.unit, value_kind: p.kind, min_value: p.min ?? null, max_value: p.max ?? null }); }}>
+                  <Select onValueChange={(i) => { const p = SENSOR_PRESETS[Number(i)]!; setEdit({ ...edit, name: p.name, sensor_type: p.type, unit: p.unit, value_kind: p.kind, min_value: p.min ?? null, max_value: p.max ?? null }); }}>
                     <SelectTrigger><SelectValue placeholder="Choose a sensor type…" /></SelectTrigger>
                     <SelectContent>{SENSOR_PRESETS.map((p, i) => <SelectItem key={i} value={String(i)}>{p.type} — {p.name}</SelectItem>)}</SelectContent>
                   </Select>
