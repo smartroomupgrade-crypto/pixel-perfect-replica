@@ -12,4 +12,16 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    // Pre-bundle deps up front so the dev server doesn't reload mid-page-load
+    // (which surfaces as "Importing a module script failed").
+    optimizeDeps: {
+      include: [
+        "recharts", "sonner", "zod", "lucide-react", "clsx", "tailwind-merge", "class-variance-authority",
+        "@lovable.dev/cloud-auth-js", "@supabase/supabase-js",
+        "@radix-ui/react-label", "@radix-ui/react-slot", "@radix-ui/react-dialog", "@radix-ui/react-select",
+        "@radix-ui/react-slider", "@radix-ui/react-switch", "@radix-ui/react-tabs",
+      ],
+    },
+  },
 });
