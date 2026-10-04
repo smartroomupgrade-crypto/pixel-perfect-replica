@@ -52,7 +52,9 @@ export function SecretField({ label, kind, isSet, onSaved }: { label: string; ki
   async function save() {
     if (!project || !v) return;
     setSaving(true);
-    const { error } = await supabase.from("project_credentials").upsert({ project_id: project.id, kind, value: v.trim(), updated_at: new Date().toISOString() });
+    const { error } = await supabase
+      .from("project_credentials")
+      .upsert({ project_id: project.id, kind, value: v.trim(), updated_at: new Date().toISOString() }, { onConflict: "project_id,kind" });
     setSaving(false);
     if (error) return toast.error(error.message);
     setV("");

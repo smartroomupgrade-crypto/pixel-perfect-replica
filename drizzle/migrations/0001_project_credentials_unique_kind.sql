@@ -1,0 +1,1 @@
+DELETE FROM public.project_credentials a USING public.project_credentials b WHERE a.project_id = b.project_id AND a.kind = b.kind AND a.updated_at < b.updated_at; ALTER TABLE public.project_credentials ADD CONSTRAINT project_credentials_project_kind_key UNIQUE (project_id, kind);
