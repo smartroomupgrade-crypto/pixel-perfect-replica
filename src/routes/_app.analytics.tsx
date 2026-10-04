@@ -48,7 +48,7 @@ function SensorChart({ sensor: s, data, tz, long }: { sensor: Sensor; data: Read
   const [sel, setSel] = useState<Reading | null>(null);
   const stats = useMemo(() => {
     if (!data.length) return null;
-    let max = data[0], min = data[0], sum = 0;
+    let max: Reading = data[0]!, min: Reading = data[0]!, sum = 0;
     for (const r of data) { if (r.v > max.v) max = r; if (r.v < min.v) min = r; sum += r.v; }
     return { max, min, avg: sum / data.length };
   }, [data]);
