@@ -29,7 +29,7 @@ function Settings() {
           <TabsTrigger value="automations">Automations</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
-        <TabsContent value="project" className="space-y-5"><ProjectSection /><DemoSection /></TabsContent>
+        <TabsContent value="project" className="space-y-5"><ProjectSection /></TabsContent>
         <TabsContent value="sensors"><SensorsSection /></TabsContent>
         <TabsContent value="devices"><DevicesSection /></TabsContent>
         <TabsContent value="connections" className="space-y-5"><ThingSpeakSection /><GatewaySection /><TelegramSection /><CameraSection /></TabsContent>

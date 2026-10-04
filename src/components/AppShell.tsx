@@ -39,12 +39,6 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
       </aside>
 
-      {project?.demo_mode && (
-        <div className="sticky top-0 z-20 border-b border-warning/30 bg-warning-soft px-4 py-2 text-center text-xs font-medium text-foreground">
-          DEMO MODE — values and device states are simulated, not real hardware.
-        </div>
-      )}
-
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-10">{children}</main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
