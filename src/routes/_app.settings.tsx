@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/AppShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AutomationsSection, CommandHistory, DevicesSection, SensorsSection } from "@/components/settings/ConfigSections";
-import { CameraSection, DemoSection, GatewaySection, ProjectSection, TelegramSection, ThingSpeakSection } from "@/components/settings/ConnectionSections";
+import { CameraSection, GatewaySection, ProjectSection, TelegramSection, ThingSpeakSection } from "@/components/settings/ConnectionSections";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({
