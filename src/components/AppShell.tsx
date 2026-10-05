@@ -47,7 +47,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mt-auto px-3 py-2.5"><ConnectionDot /></div>
       </aside>
 
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-10">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-10">
+        <div className="mb-4 flex justify-end md:hidden"><ConnectionDot /></div>
+        {children}
+      </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {NAV.map(({ to, label, icon: Icon }) => (
