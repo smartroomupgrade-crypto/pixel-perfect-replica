@@ -1,4 +1,4 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Power } from "lucide-react";
@@ -22,12 +22,12 @@ export const Route = createFileRoute("/auth")({
 });
 
 function AuthPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAnonymous } = useAuth();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  if (!loading && user) return <Navigate to="/controls" />;
+  if (!loading && user && !isAnonymous) return <Navigate to="/controls" />;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -64,6 +64,9 @@ function AuthPage() {
         <button className="mt-5 w-full text-center text-sm text-muted-foreground hover:text-foreground" onClick={() => setMode(mode === "in" ? "up" : "in")}>
           {mode === "in" ? "No account? Create one" : "Have an account? Sign in"}
         </button>
+        <Link to="/controls" className="mt-2 block w-full text-center text-xs text-muted-foreground underline-offset-2 hover:underline">
+          Continue without an account
+        </Link>
       </div>
     </div>
   );
