@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Camera, Send, Wifi } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Section, Field, SecretField, useCredentialStatus } from "./common";
 import { useProject, type Project } from "@/lib/project";
 import { TIMEZONES } from "@/lib/catalog";
-import { cameraAction, sendTelegramTest, testGateway } from "@/lib/iot.functions";
+import { cameraAction, sendTelegramTest } from "@/lib/iot.functions";
+import { MODE_LABEL, useGateway } from "@/lib/gateway";
 import { cn } from "@/lib/utils";
 
 function useDraft<K extends keyof Project>(keys: K[]) {
@@ -37,6 +41,25 @@ export function ProjectSection() {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>{TIMEZONES.map((t) => <SelectItem key={t} value={t}>{t === "Africa/Kampala" ? "Africa/Kampala (UTC+03:00)" : t}</SelectItem>)}</SelectContent>
         </Select>
+      </Field>
+    </Section>
+  );
+}
+
+export function AccountSection() {
+  const { user, isAnonymous } = useAuth();
+  const nav = useNavigate();
+  return (
+    <Section title="Account" description="Optional — sign in to keep your setup if you change devices or browsers.">
+      <Field label="Status" full>
+        <div className="flex items-center justify-between rounded-lg bg-secondary px-4 py-3 text-sm">
+          {isAnonymous ? "Using the app without an account" : `Signed in as ${user?.email ?? "you"}`}
+          {isAnonymous ? (
+            <Button variant="outline" size="sm" onClick={() => nav({ to: "/auth" })}>Sign in</Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}>Sign out</Button>
+          )}
+        </div>
       </Field>
     </Section>
   );
@@ -75,34 +98,40 @@ export function ThingSpeakSection() {
 }
 
 export function GatewaySection() {
-  const { project, reload } = useProject();
-  const { d, set, save } = useDraft(["gateway_name", "gateway_url", "gateway_endpoint"]);
+  const { project } = useProject();
+  const { d, set, save } = useDraft(["gateway_name", "gateway_id", "gateway_local_ip", "remote_enabled", "gateway_url"]);
   const { status, refresh } = useCredentialStatus();
-  const [testing, setTesting] = useState(false);
+  const { mode, latencyMs, testing, testConnection } = useGateway();
   const [msg, setMsg] = useState<string | null>(null);
-  const online = project?.gateway_status === "online";
   async function test() {
-    if (!project) return;
-    setTesting(true);
     await save();
-    const r = await testGateway({ data: { projectId: project.id } }).catch(() => ({ online: false, message: "Test failed" }));
-    setMsg(r.message); setTesting(false); reload();
+    const r = await testConnection();
+    setMsg(r.message);
   }
+  const modeColor = mode === "local" || mode === "remote" ? "text-success" : mode === "offline" ? "text-destructive" : "text-muted-foreground";
+  const dotColor = mode === "local" || mode === "remote" ? "bg-success" : mode === "offline" ? "bg-destructive" : "bg-warning animate-pulse";
   return (
-    <Section title="Gateway Connection" description="The Wi-Fi module (ESP8266, ESP32, etc.) that relays commands to your Arduino."
+    <Section title="Gateway Connection" description="The Wi-Fi module that relays commands to your Arduino. The app tries the local network first and falls back to the internet automatically."
       footer={<>
         <Button onClick={save}>Save gateway</Button>
         <Button variant="outline" onClick={test} disabled={testing}><Wifi />{testing ? "Testing…" : "Test connection"}</Button>
-        <span className={cn("ml-auto flex items-center gap-2 text-sm font-medium", online ? "text-success" : "text-muted-foreground")}>
-          <span className={cn("size-2 rounded-full", online ? "bg-success" : project?.gateway_status === "offline" ? "bg-destructive" : "bg-muted-foreground")} />
-          {online ? "Gateway Online" : project?.gateway_status === "offline" ? "Gateway Offline" : "Not tested"}
+        <span className={cn("ml-auto flex items-center gap-2 text-sm font-medium", modeColor)}>
+          <span className={cn("size-2 rounded-full", dotColor)} />
+          {MODE_LABEL[mode]}{mode === "local" && latencyMs != null ? ` · ${latencyMs} ms` : ""}
         </span>
       </>}>
       <Field label="Gateway name"><Input value={d.gateway_name ?? ""} onChange={(e) => set("gateway_name", e.target.value)} placeholder="Smart Room Gateway" /></Field>
-      <Field label="Gateway URL / IP" hint="Must be reachable from the internet (public IP, tunnel or cloud relay).">
-        <Input value={d.gateway_url ?? ""} onChange={(e) => set("gateway_url", e.target.value)} placeholder="http://192.168.1.100" /></Field>
-      <Field label="API endpoint" hint="Commands POST to {endpoint}/command, status via {endpoint}/status">
-        <Input value={d.gateway_endpoint ?? ""} onChange={(e) => set("gateway_endpoint", e.target.value)} placeholder="/api" /></Field>
+      <Field label="Gateway ID" hint="Unique ID of your physical room, e.g. SR-UG-001"><Input value={d.gateway_id ?? ""} onChange={(e) => set("gateway_id", e.target.value)} placeholder="SR-UG-001" /></Field>
+      <Field label="Local IP address" hint="Used first when your phone is on the same Wi-Fi."><Input value={d.gateway_local_ip ?? ""} onChange={(e) => set("gateway_local_ip", e.target.value)} placeholder="192.168.1.50" /></Field>
+      <Field label="Remote access" hint="Internet fallback address (public IP, tunnel or cloud relay).">
+        <div className="flex items-center gap-3">
+          <Switch checked={!!d.remote_enabled} onCheckedChange={(c) => set("remote_enabled", c)} />
+          <span className="text-sm text-muted-foreground">{d.remote_enabled ? "ON" : "OFF"}</span>
+        </div>
+      </Field>
+      {!!d.remote_enabled && (
+        <Field label="Remote gateway URL" full><Input value={d.gateway_url ?? ""} onChange={(e) => set("gateway_url", e.target.value)} placeholder="https://your-tunnel.example.com" /></Field>
+      )}
       <SecretField label="Gateway API key" kind="gateway_key" isSet={status.gateway_key} onSaved={refresh} />
       {msg && <p className="text-sm text-muted-foreground sm:col-span-2">{msg}</p>}
     </Section>

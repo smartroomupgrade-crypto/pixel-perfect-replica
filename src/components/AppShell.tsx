@@ -1,8 +1,9 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Activity, BarChart3, Bell, LogOut, Power, Settings } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { Activity, BarChart3, Bell, Power, Settings } from "lucide-react";
 import type { ReactNode } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { useProject } from "@/lib/project";
+import { MODE_LABEL, useGateway } from "@/lib/gateway";
+import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/controls", label: "Controls", icon: Power },
@@ -12,9 +13,19 @@ const NAV = [
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
+function ConnectionDot() {
+  const { mode, latencyMs } = useGateway();
+  const color = mode === "local" || mode === "remote" ? "bg-success" : mode === "offline" ? "bg-destructive" : "bg-warning animate-pulse";
+  return (
+    <span className="flex items-center gap-2 text-xs text-muted-foreground" title={latencyMs != null ? `Response: ${latencyMs} ms` : undefined}>
+      <span className={cn("size-2 rounded-full", color)} />
+      {MODE_LABEL[mode]}{mode === "local" && latencyMs != null ? ` · ${latencyMs} ms` : ""}
+    </span>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const { project } = useProject();
-  const nav = useNavigate();
   return (
     <div className="min-h-screen md:pl-60">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-sidebar p-4 md:flex">
@@ -33,13 +44,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <button onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}
-          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-muted-foreground hover:bg-accent">
-          <LogOut className="size-4" />Sign out
-        </button>
+        <div className="mt-auto px-3 py-2.5"><ConnectionDot /></div>
       </aside>
 
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-10">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 md:px-8 md:pb-12 md:pt-10">
+        <div className="mb-4 flex justify-end md:hidden"><ConnectionDot /></div>
+        {children}
+      </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {NAV.map(({ to, label, icon: Icon }) => (

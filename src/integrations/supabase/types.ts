@@ -117,9 +117,11 @@ export type Database = {
           created_at: string
           device_id: string | null
           device_name: string
+          gateway_id: string | null
           id: string
           project_id: string
           reason: string | null
+          source: string | null
           status: string
           user_email: string | null
         }
@@ -129,9 +131,11 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           device_name: string
+          gateway_id?: string | null
           id?: string
           project_id: string
           reason?: string | null
+          source?: string | null
           status?: string
           user_email?: string | null
         }
@@ -141,9 +145,11 @@ export type Database = {
           created_at?: string
           device_id?: string | null
           device_name?: string
+          gateway_id?: string | null
           id?: string
           project_id?: string
           reason?: string | null
+          source?: string | null
           status?: string
           user_email?: string | null
         }
@@ -332,6 +338,8 @@ export type Database = {
           description: string | null
           gateway_checked_at: string | null
           gateway_endpoint: string | null
+          gateway_id: string | null
+          gateway_local_ip: string | null
           gateway_name: string | null
           gateway_status: string
           gateway_url: string | null
@@ -339,6 +347,7 @@ export type Database = {
           location: string | null
           name: string
           offline_timeout_sec: number
+          remote_enabled: boolean
           setup_complete: boolean
           setup_step: number
           telegram_chat_id: string | null
@@ -360,6 +369,8 @@ export type Database = {
           description?: string | null
           gateway_checked_at?: string | null
           gateway_endpoint?: string | null
+          gateway_id?: string | null
+          gateway_local_ip?: string | null
           gateway_name?: string | null
           gateway_status?: string
           gateway_url?: string | null
@@ -367,6 +378,7 @@ export type Database = {
           location?: string | null
           name: string
           offline_timeout_sec?: number
+          remote_enabled?: boolean
           setup_complete?: boolean
           setup_step?: number
           telegram_chat_id?: string | null
@@ -388,6 +400,8 @@ export type Database = {
           description?: string | null
           gateway_checked_at?: string | null
           gateway_endpoint?: string | null
+          gateway_id?: string | null
+          gateway_local_ip?: string | null
           gateway_name?: string | null
           gateway_status?: string
           gateway_url?: string | null
@@ -395,6 +409,7 @@ export type Database = {
           location?: string | null
           name?: string
           offline_timeout_sec?: number
+          remote_enabled?: boolean
           setup_complete?: boolean
           setup_step?: number
           telegram_chat_id?: string | null

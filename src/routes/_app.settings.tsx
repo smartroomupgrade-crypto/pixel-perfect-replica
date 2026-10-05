@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageHeader } from "@/components/AppShell";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AutomationsSection, CommandHistory, DevicesSection, SensorsSection } from "@/components/settings/ConfigSections";
-import { CameraSection, GatewaySection, ProjectSection, TelegramSection, ThingSpeakSection } from "@/components/settings/ConnectionSections";
+import { AccountSection, CameraSection, GatewaySection, ProjectSection, TelegramSection, ThingSpeakSection } from "@/components/settings/ConnectionSections";
 
 export const Route = createFileRoute("/_app/settings")({
   head: () => ({
@@ -29,7 +29,7 @@ function Settings() {
           <TabsTrigger value="automations">Automations</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
         </TabsList>
-        <TabsContent value="project" className="space-y-5"><ProjectSection /></TabsContent>
+        <TabsContent value="project" className="space-y-5"><ProjectSection /><AccountSection /></TabsContent>
         <TabsContent value="sensors"><SensorsSection /></TabsContent>
         <TabsContent value="devices"><DevicesSection /></TabsContent>
         <TabsContent value="connections" className="space-y-5"><ThingSpeakSection /><GatewaySection /><TelegramSection /><CameraSection /></TabsContent>

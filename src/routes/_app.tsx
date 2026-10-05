@@ -1,8 +1,9 @@
-import { createFileRoute, Navigate, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { ProjectProvider, useProject } from "@/lib/project";
+import { CommunicationProvider } from "@/lib/gateway";
 import { AppShell } from "@/components/AppShell";
 
 export const Route = createFileRoute("/_app")({
@@ -13,10 +14,12 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { user, loading } = useAuth();
   if (loading) return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Loading…</div>;
-  if (!user) return <Navigate to="/auth" />;
+  if (!user) return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">Could not start a session — check your connection and refresh.</div>;
   return (
     <ProjectProvider>
-      <EnsureProject />
+      <CommunicationProvider>
+        <EnsureProject />
+      </CommunicationProvider>
     </ProjectProvider>
   );
 }
