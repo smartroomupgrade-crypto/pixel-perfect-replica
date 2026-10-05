@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Camera, Send, Wifi } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -38,6 +41,25 @@ export function ProjectSection() {
           <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>{TIMEZONES.map((t) => <SelectItem key={t} value={t}>{t === "Africa/Kampala" ? "Africa/Kampala (UTC+03:00)" : t}</SelectItem>)}</SelectContent>
         </Select>
+      </Field>
+    </Section>
+  );
+}
+
+export function AccountSection() {
+  const { user, isAnonymous } = useAuth();
+  const nav = useNavigate();
+  return (
+    <Section title="Account" description="Optional — sign in to keep your setup if you change devices or browsers.">
+      <Field label="Status" full>
+        <div className="flex items-center justify-between rounded-lg bg-secondary px-4 py-3 text-sm">
+          {isAnonymous ? "Using the app without an account" : `Signed in as ${user?.email ?? "you"}`}
+          {isAnonymous ? (
+            <Button variant="outline" size="sm" onClick={() => nav({ to: "/auth" })}>Sign in</Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={async () => { await supabase.auth.signOut(); nav({ to: "/auth" }); }}>Sign out</Button>
+          )}
+        </div>
       </Field>
     </Section>
   );
