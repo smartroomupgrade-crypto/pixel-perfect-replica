@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { DeviceVisual } from "./DeviceVisual";
 
 /** Realistic 80mm cooling fan. Blades spin up/slow down smoothly with inertia. */
 export function FanVisual({ on }: { on: boolean }) {
@@ -159,6 +160,7 @@ export function BuzzerVisual({ on }: { on: boolean }) {
 
 export function PremiumVisual({ type, on }: { type: string; on: boolean }) {
   if (type === "fan") return <FanVisual on={on} />;
-  if (type === "alarm") return <BuzzerVisual on={on} />;
-  return <LampVisual on={on} />;
+  if (type === "alarm" || type === "buzzer") return <BuzzerVisual on={on} />;
+  if (type === "lamp" || type === "light") return <LampVisual on={on} />;
+  return <DeviceVisual type={type} on={on} />;
 }

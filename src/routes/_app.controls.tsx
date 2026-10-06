@@ -20,11 +20,6 @@ export const Route = createFileRoute("/_app/controls")({
   component: Controls,
 });
 
-// V1 shows only these; more types can be enabled later.
-const V1_TYPES = [
-  { type: "fan", label: "Fan" },
-  { type: "lamp", label: "Lamp", alt: ["light"] },
-];
 
 function Controls() {
   const { devices } = useProject();
@@ -35,13 +30,17 @@ function Controls() {
     if (mode === "local") syncState();
   }, [mode]);
 
+  const enabled = devices.filter((d) => d.enabled);
+  const hasFan = enabled.some((d) => d.device_type === "fan");
+  const hasLamp = enabled.some((d) => d.device_type === "lamp" || d.device_type === "light");
   return (
-    <div className="mx-auto max-w-4xl py-4">
-      <div className="grid gap-6 sm:grid-cols-2">
-        {V1_TYPES.map((t) => {
-          const d = devices.find((x) => x.enabled && (x.device_type === t.type || t.alt?.includes(x.device_type)));
-          return <PremiumCard key={t.type} type={t.type} label={d?.name ?? t.label} device={d} />;
-        })}
+    <div className="mx-auto max-w-5xl py-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        {enabled.map((d) => (
+          <PremiumCard key={d.id} type={d.device_type} label={d.name} device={d} />
+        ))}
+        {!hasFan && <PremiumCard type="fan" label="Fan" />}
+        {!hasLamp && <PremiumCard type="lamp" label="Lamp" />}
       </div>
     </div>
   );
