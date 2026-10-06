@@ -7,8 +7,8 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { sendDeviceCommand } from "./iot.functions";
 import { useProject, type Device, type Project } from "./project";
 
-export type LogicalDevice = "FAN" | "LAMP";
-export type LogicalCommand = "FAN_ON" | "FAN_OFF" | "LAMP_ON" | "LAMP_OFF" | "GET_STATE" | "PING";
+export type LogicalDevice = string;
+export type LogicalCommand = string;
 export type ConnMode = "local" | "remote" | "connecting" | "offline";
 export type CommandStatus = "PENDING" | "SENT" | "CONFIRMED" | "FAILED" | "TIMEOUT";
 
@@ -50,7 +50,8 @@ function logicalFor(device: Device): LogicalDevice | null {
   const t = device.device_type;
   if (t === "fan") return "FAN";
   if (t === "lamp" || t === "light") return "LAMP";
-  return null;
+  const key = (device.device_key || device.name || t).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
+  return key || null;
 }
 
 // ---- Local gateway service ----
@@ -206,7 +207,7 @@ export function CommunicationProvider({ children }: { children: ReactNode }) {
       const t0 = performance.now();
       const st = await localSvc.sendCommand(cmd, project?.gateway_id);
       if (st) {
-        const state = ld === "FAN" ? st.fan : st.lamp;
+        const state = ld === "FAN" ? st.fan : ld === "LAMP" ? st.lamp : (typeof st.sensors[`${ld}_STATE`] === "string" ? (String(st.sensors[`${ld}_STATE`]) === "ON" ? "on" : "off") : undefined);
         if (state) {
           markOk("local", Math.round(performance.now() - t0));
           setConfirmed((p) => ({ ...p, [device.id]: state }));
