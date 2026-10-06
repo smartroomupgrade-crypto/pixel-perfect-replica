@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { DeviceVisual } from "./DeviceVisual";
 
 /** Realistic 80mm cooling fan. Blades spin up/slow down smoothly with inertia. */
 export function FanVisual({ on }: { on: boolean }) {
