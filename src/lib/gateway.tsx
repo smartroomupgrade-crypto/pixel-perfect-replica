@@ -282,9 +282,20 @@ export function CommunicationProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
-export function useGateway() {
+const FALLBACK: ManagerCtx = {
+  mode: "connecting",
+  latencyMs: null,
+  lastOkAt: null,
+  testing: false,
+  testConnection: async () => ({ ok: false, message: "Connection manager not ready" }),
+  sendCommand: async () => ({ status: "FAILED", source: null, error: "Connection manager not ready" }),
+  syncState: async () => {},
+  confirmed: {},
+};
+
+export function useGateway(): ManagerCtx {
   const c = useContext(Ctx);
-  if (!c) throw new Error("useGateway outside provider");
+  if (!c) return FALLBACK;
   return c;
 }
 
