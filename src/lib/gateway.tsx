@@ -62,7 +62,7 @@ class LocalGatewayService {
     return b + "/" + path.replace(/^\/+/, "");
   }
 
-  private headers() {
+  private headers(): Record<string, string> {
     return this.apiKey ? { "X-API-Key": this.apiKey } : {};
   }
 
