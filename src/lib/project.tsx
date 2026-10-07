@@ -17,6 +17,7 @@ type Ctx = {
   devices: Device[];
   readings: Record<string, Reading[]>;
   telemetryError: string | null;
+  lastFetchAt: number | null;
   reload: () => Promise<void>;
   updateProject: (patch: Partial<Project>) => Promise<void>;
 };
@@ -65,6 +66,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const [devices, setDevices] = useState<Device[]>([]);
   const [readings, setReadings] = useState<Record<string, Reading[]>>({});
   const [telemetryError, setTelemetryError] = useState<string | null>(null);
+  const [lastFetchAt, setLastFetchAt] = useState<number | null>(null);
 
   const reload = useCallback(async () => {
     if (!user) return;
@@ -116,9 +118,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         setReadings(r);
         setTelemetryError(null);
       } else if (project.thingspeak_enabled && project.thingspeak_channel_id) {
-        const res = await fetchThingSpeak({ data: { projectId: project.id, results: 200 } }).catch(() => null);
+        const res = await fetchThingSpeak({ data: { projectId: project.id, results: 1000 } }).catch(() => null);
         if (stop) return;
-        if (res) { setReadings(feedsToReadings(ss, res.feeds)); setTelemetryError(res.error); }
+        if (res && !res.error) { setReadings(feedsToReadings(ss, res.feeds)); setTelemetryError(null); setLastFetchAt(Date.now()); }
+        else setTelemetryError(res?.error ?? "Connection lost — retrying");
       } else {
         setReadings({});
         setTelemetryError(null);
@@ -128,7 +131,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     const ms = project.demo_mode ? 5000 : Math.max(15, project.thingspeak_interval_sec) * 1000;
     const id = setInterval(tick, ms);
     return () => { stop = true; clearInterval(id); };
-  }, [project?.id, project?.demo_mode, project?.thingspeak_enabled, project?.thingspeak_channel_id, project?.thingspeak_interval_sec, sensors.length]);
+  }, [project?.id, project?.demo_mode, project?.thingspeak_enabled, project?.thingspeak_channel_id, project?.thingspeak_interval_sec, sensors.map((s) => s.id + s.thingspeak_field).join()]);
 
   const updateProject = useCallback(async (patch: Partial<Project>) => {
     if (!project) return;
@@ -138,8 +141,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   }, [project]);
 
   const value = useMemo(
-    () => ({ loading, project, sensors, devices, readings, telemetryError, reload, updateProject }),
-    [loading, project, sensors, devices, readings, telemetryError, reload, updateProject],
+    () => ({ loading, project, sensors, devices, readings, telemetryError, lastFetchAt, reload, updateProject }),
+    [loading, project, sensors, devices, readings, telemetryError, lastFetchAt, reload, updateProject],
   );
   return <C.Provider value={value}>{children}</C.Provider>;
 }

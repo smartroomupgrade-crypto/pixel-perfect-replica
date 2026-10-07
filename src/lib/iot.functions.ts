@@ -203,3 +203,140 @@ export const cameraAction = createServerFn({ method: "POST" })
       return { ok: false, message: "Camera not reachable from the internet" };
     }
   });
+
+const DEFAULT_TS_MAP: { field: number; name: string; type: string; unit: string; kind: "numeric" | "binary"; warn?: number; crit?: number }[] = [
+  { field: 1, name: "Temperature", type: "Temperature", unit: "°C", kind: "numeric", warn: 32, crit: 38 },
+  { field: 2, name: "Humidity", type: "Humidity", unit: "%", kind: "numeric", warn: 80, crit: 90 },
+  { field: 3, name: "Distance", type: "Distance", unit: "cm", kind: "numeric" },
+  { field: 4, name: "Motion", type: "Motion", unit: "", kind: "binary" },
+  { field: 5, name: "Voltage", type: "Voltage", unit: "V", kind: "numeric", warn: 245, crit: 255 },
+  { field: 6, name: "Current", type: "Current", unit: "A", kind: "numeric", warn: 8, crit: 10 },
+  { field: 7, name: "Power", type: "Power", unit: "W", kind: "numeric", warn: 1800, crit: 2200 },
+  { field: 8, name: "Gas", type: "Gas", unit: "ppm", kind: "numeric", warn: 400, crit: 700 },
+];
+
+async function saveCred(projectId: string, kind: string, value: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("project_credentials").upsert(
+    { project_id: projectId, kind, value, updated_at: new Date().toISOString() },
+    { onConflict: "project_id,kind" },
+  );
+}
+
+export const connectThingSpeak = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      projectId: z.string().uuid(),
+      channelId: z.string().trim().regex(/^\d{1,12}$/, "Channel ID must be a number"),
+      readKey: z.string().trim().max(64).optional(),
+      writeKey: z.string().trim().max(64).optional(),
+      interval: z.number().int().min(15).max(3600),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const { data: p } = await sb.from("projects").select("id").eq("id", data.projectId).maybeSingle();
+    if (!p) throw new Error("Project not found");
+    if (data.readKey) await saveCred(p.id, "ts_read", data.readKey);
+    if (data.writeKey) await saveCred(p.id, "ts_write", data.writeKey);
+    const creds = await getCreds(p.id, ["ts_read"]);
+    const url = (key?: string) =>
+      `https://api.thingspeak.com/channels/${data.channelId}/feeds.json?results=100${key ? `&api_key=${encodeURIComponent(key)}` : ""}`;
+    let res: Response | null = null;
+    try {
+      res = await fetch(url(creds.ts_read), { signal: AbortSignal.timeout(10000) });
+      if (!res.ok && creds.ts_read) res = await fetch(url(), { signal: AbortSignal.timeout(10000) }); // public channel fallback
+    } catch {
+      return { ok: false as const, message: "Could not reach ThingSpeak. Check your internet connection." };
+    }
+    if (!res.ok) {
+      return { ok: false as const, message: res.status === 400 || res.status === 401 ? "ThingSpeak rejected the request — check the Channel ID and Read API Key." : `ThingSpeak returned ${res.status}` };
+    }
+    const j = (await res.json().catch(() => null)) as { channel?: Record<string, string>; feeds?: Record<string, string | null>[] } | null;
+    if (!j?.channel) return { ok: false as const, message: "Channel not found or not accessible." };
+    const fields = DEFAULT_TS_MAP.filter((m) => j.channel![`field${m.field}`]).map((m) => m.field);
+    const lastAt = j.feeds?.length ? j.feeds[j.feeds.length - 1]!.created_at : null;
+
+    await sb.from("projects").update({ thingspeak_enabled: true, thingspeak_channel_id: data.channelId, thingspeak_interval_sec: data.interval }).eq("id", p.id);
+
+    // Map fields to sensors (create missing ones; keep existing mappings)
+    const { data: existing } = await sb.from("sensors").select("id,name,thingspeak_field").eq("project_id", p.id);
+    const list = existing ?? [];
+    let order = list.length;
+    // Use the channel's own field labels when they name a known sensor; else default order
+    const resolved = DEFAULT_TS_MAP.map((m) => {
+      const hit = [1, 2, 3, 4, 5, 6, 7, 8].find((f) => (j.channel![`field${f}`] ?? "").toLowerCase().includes(m.name.toLowerCase()));
+      return { ...m, field: hit ?? m.field };
+    });
+    for (const m of resolved) {
+      if (!fields.includes(m.field)) continue;
+      if (list.some((s) => s.thingspeak_field === m.field)) continue;
+      const byName = list.find((s) => s.name.toLowerCase().includes(m.name.toLowerCase()) && !s.thingspeak_field);
+      if (byName) { await sb.from("sensors").update({ thingspeak_field: m.field }).eq("id", byName.id); continue; }
+      await sb.from("sensors").insert({
+        project_id: p.id, name: m.name, sensor_type: m.type, sensor_key: m.name.toLowerCase(), thingspeak_field: m.field,
+        data_field: `field${m.field}`, unit: m.unit, value_kind: m.kind, decimals: m.kind === "binary" ? 0 : 1,
+        warning_threshold: m.warn ?? null, critical_threshold: m.crit ?? null, sort_order: order++,
+      });
+    }
+    return {
+      ok: true as const,
+      channelName: j.channel.name ?? "",
+      channelId: data.channelId,
+      lastAt,
+      fieldsDetected: fields.length,
+      message: "ThingSpeak connected",
+    };
+  });
+
+export const writeThingSpeak = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => pid.extend({ fields: z.record(z.string().regex(/^field[1-8]$/), z.number()) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: p } = await context.supabase.from("projects").select("id").eq("id", data.projectId).maybeSingle();
+    if (!p) throw new Error("Project not found");
+    const creds = await getCreds(p.id, ["ts_write"]);
+    if (!creds.ts_write) return { ok: false, message: "Write API Key not set" };
+    const q = new URLSearchParams({ api_key: creds.ts_write });
+    for (const [k, v] of Object.entries(data.fields)) q.set(k, String(v));
+    const res = await fetch(`https://api.thingspeak.com/update?${q}`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+    const t = res ? await res.text() : "0";
+    return { ok: !!res?.ok && t.trim() !== "0", message: t.trim() !== "0" ? "Data sent" : "ThingSpeak rejected the update (wait 15s between writes)" };
+  });
+
+export const connectTelegram = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    pid.extend({
+      token: z.string().trim().regex(/^\d+:[\w-]{20,}$/, "Bot token format looks wrong").optional(),
+      chatId: z.string().trim().regex(/^-?\d{3,20}$|^@\w{4,}$/, "Chat ID must be a number like 123456789"),
+    }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const sb = context.supabase;
+    const { data: p } = await sb.from("projects").select("id,name").eq("id", data.projectId).maybeSingle();
+    if (!p) throw new Error("Project not found");
+    if (data.token) await saveCred(p.id, "telegram_token", data.token);
+    await sb.from("projects").update({ telegram_chat_id: data.chatId }).eq("id", p.id);
+    const creds = await getCreds(p.id, ["telegram_token"]);
+    if (!creds.telegram_token) return { ok: false, message: "Bot Token is required" };
+    const api = `https://api.telegram.org/bot${creds.telegram_token}`;
+    try {
+      const me = (await (await fetch(`${api}/getMe`, { signal: AbortSignal.timeout(8000) })).json()) as { ok?: boolean; result?: { username?: string } };
+      if (!me.ok) return { ok: false, message: "Bot Token is invalid" };
+      const r = (await (await fetch(`${api}/sendMessage`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id: data.chatId, text: "Smart Room Remote Access\n✓ Telegram connection successful.\nYour Smart Room alert system is now connected." }),
+        signal: AbortSignal.timeout(8000),
+      })).json()) as { ok?: boolean; description?: string };
+      if (!r.ok) {
+        await sb.from("projects").update({ telegram_enabled: false }).eq("id", p.id);
+        return { ok: false, message: `Chat ID problem: ${r.description ?? "rejected"}. Open your bot in Telegram and press Start first.` };
+      }
+      await sb.from("projects").update({ telegram_enabled: true }).eq("id", p.id);
+      return { ok: true, message: `Test message sent via @${me.result?.username ?? "bot"}` };
+    } catch {
+      return { ok: false, message: "Could not reach Telegram — check your internet connection." };
+    }
+  });
