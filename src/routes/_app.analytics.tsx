@@ -50,7 +50,8 @@ function SensorChart({ sensor: s, data, tz, long }: { sensor: Sensor; data: Read
     if (!data.length) return null;
     let max: Reading = data[0]!, min: Reading = data[0]!, sum = 0;
     for (const r of data) { if (r.v > max.v) max = r; if (r.v < min.v) min = r; sum += r.v; }
-    return { max, min, avg: sum / data.length };
+    const abn = data.filter((r) => (s.warning_threshold != null && r.v >= Number(s.warning_threshold)) || (s.min_value != null && r.v < Number(s.min_value)) || (s.max_value != null && r.v > Number(s.max_value))).length;
+    return { max, min, avg: sum / data.length, n: data.length, abn };
   }, [data]);
   const fmt = (t: number) => new Date(t).toLocaleString("en-GB", { timeZone: tz, ...(long ? { day: "2-digit", month: "short" } : {}), hour: "2-digit", minute: "2-digit" });
   const v = (n: number) => `${n.toFixed(s.decimals)} ${s.unit ?? ""}`;
@@ -63,6 +64,9 @@ function SensorChart({ sensor: s, data, tz, long }: { sensor: Sensor; data: Read
           <button className="rounded-md bg-secondary px-2 py-1.5 text-left" onClick={() => setSel(stats.min)}><span className="block text-muted-foreground">Lowest</span><span className="font-semibold tabular">{v(stats.min.v)}</span></button>
           <div className="rounded-md bg-secondary px-2 py-1.5"><span className="block text-muted-foreground">Average</span><span className="font-semibold tabular">{v(stats.avg)}</span></div>
         </div>
+      ) : null}
+      {stats ? (
+        <p className="mt-2 text-xs text-muted-foreground">{stats.n} valid entries · peak at {fmt(stats.max.t)} · lowest at {fmt(stats.min.t)} · {stats.abn} abnormal</p>
       ) : <p className="mt-2 text-sm text-muted-foreground">No readings in this period.</p>}
       <div className="mt-4 h-56">
         <ResponsiveContainer width="100%" height="100%">
