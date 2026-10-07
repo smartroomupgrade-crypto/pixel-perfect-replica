@@ -264,7 +264,12 @@ export const connectThingSpeak = createServerFn({ method: "POST" })
     const { data: existing } = await sb.from("sensors").select("id,name,thingspeak_field").eq("project_id", p.id);
     const list = existing ?? [];
     let order = list.length;
-    for (const m of DEFAULT_TS_MAP) {
+    // Use the channel's own field labels when they name a known sensor; else default order
+    const resolved = DEFAULT_TS_MAP.map((m) => {
+      const hit = [1, 2, 3, 4, 5, 6, 7, 8].find((f) => (j.channel![`field${f}`] ?? "").toLowerCase().includes(m.name.toLowerCase()));
+      return { ...m, field: hit ?? m.field };
+    });
+    for (const m of resolved) {
       if (!fields.includes(m.field)) continue;
       if (list.some((s) => s.thingspeak_field === m.field)) continue;
       const byName = list.find((s) => s.name.toLowerCase().includes(m.name.toLowerCase()) && !s.thingspeak_field);
