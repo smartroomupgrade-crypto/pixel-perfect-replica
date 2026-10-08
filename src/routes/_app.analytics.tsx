@@ -18,26 +18,68 @@ export const Route = createFileRoute("/_app/analytics")({
 });
 
 const RANGES = { "1h": 3600e3, "6h": 6 * 3600e3, "24h": 24 * 3600e3, "7d": 7 * 24 * 3600e3 } as const;
+type RangeKey = keyof typeof RANGES | "custom";
+
+function toLocalInput(ms: number) {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 function Analytics() {
   const { project, sensors, readings } = useProject();
-  const [range, setRange] = useState<keyof typeof RANGES>("6h");
+  const [range, setRange] = useState<RangeKey>("6h");
+  const [customFrom, setCustomFrom] = useState(() => toLocalInput(Date.now() - 24 * 3600e3));
+  const [customTo, setCustomTo] = useState(() => toLocalInput(Date.now()));
   const list = sensors.filter((s) => s.enabled && s.include_in_analytics && s.value_kind !== "binary");
+
+  const now = Date.now();
+  let from = now - RANGES["6h" as keyof typeof RANGES];
+  let to = now;
+  if (range === "custom") {
+    const f = new Date(customFrom).getTime();
+    const t = new Date(customTo).getTime();
+    if (!isNaN(f)) from = f;
+    if (!isNaN(t)) to = t;
+    if (to <= from) to = from + 3600e3;
+  } else {
+    from = now - RANGES[range];
+  }
+  const long = to - from > 2 * 24 * 3600e3;
+
   return (
     <>
       <PageHeader title="Analytics" subtitle="Tap any point on a chart to see its exact time and value."
         action={
-          <Select value={range} onValueChange={(v) => setRange(v as keyof typeof RANGES)}>
+          <Select value={range} onValueChange={(v) => setRange(v as RangeKey)}>
             <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-            <SelectContent>{Object.keys(RANGES).map((k) => <SelectItem key={k} value={k}>Last {k}</SelectItem>)}</SelectContent>
+            <SelectContent>
+              {Object.keys(RANGES).map((k) => <SelectItem key={k} value={k}>Last {k}</SelectItem>)}
+              <SelectItem value="custom">Custom…</SelectItem>
+            </SelectContent>
           </Select>
         } />
+      {range === "custom" && (
+        <div className="card-surface mb-5 flex flex-wrap items-end gap-3 p-4">
+          <label className="text-xs text-muted-foreground">
+            From
+            <input type="datetime-local" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+              className="mt-1 block rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground" />
+          </label>
+          <label className="text-xs text-muted-foreground">
+            To
+            <input type="datetime-local" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+              className="mt-1 block rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground" />
+          </label>
+        </div>
+      )}
       {list.length === 0 && <div className="card-surface p-10 text-center text-sm text-muted-foreground">No numeric sensors to chart yet.</div>}
       <div className="grid gap-5 lg:grid-cols-2">
         {list.map((s) => {
-          const now = Date.now();
-          const data = project?.demo_mode ? demoSeries(s, now - RANGES[range], now, 120) : (readings[s.id] ?? []).filter((r) => r.t >= now - RANGES[range]);
-          return <SensorChart key={s.id} sensor={s} data={data} tz={project?.timezone ?? "Africa/Kampala"} long={range === "7d"} />;
+          const data = project?.demo_mode
+            ? demoSeries(s, from, to, 120)
+            : (readings[s.id] ?? []).filter((r) => r.t >= from && r.t <= to);
+          return <SensorChart key={s.id} sensor={s} data={data} tz={project?.timezone ?? "Africa/Kampala"} long={long} />;
         })}
       </div>
     </>

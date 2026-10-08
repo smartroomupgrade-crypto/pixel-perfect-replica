@@ -11,6 +11,8 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Emit a static index.html so Capacitor can package the app as an Android APK.
+    prerender: { enabled: true, autoSubfolderIndex: true, crawlLinks: false, pages: [{ path: "/" }] },
   },
   vite: {
     // Pre-bundle deps up front so the dev server doesn't reload mid-page-load
