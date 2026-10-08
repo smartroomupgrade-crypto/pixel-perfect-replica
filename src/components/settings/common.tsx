@@ -37,7 +37,7 @@ export function useCredentialStatus() {
   const [status, setStatus] = useState<Record<string, boolean>>(cache?.id === project?.id ? cache!.v : {});
   const refresh = async () => {
     if (!project) return;
-    const v = await credentialStatus({ data: { projectId: project.id } }).catch(() => ({}));
+    const v = ((await credentialStatus({ data: { projectId: project.id } }).catch(() => ({}))) ?? {}) as Record<string, boolean>;
     cache = { id: project.id, v };
     setStatus(v);
   };
