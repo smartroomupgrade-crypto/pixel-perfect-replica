@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { logicalCommand } from "./logical";
 
 async function getCreds(projectId: string, kinds: string[]) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -107,6 +108,8 @@ export const sendDeviceCommand = createServerFn({ method: "POST" })
         headers: { "Content-Type": "application/json", ...(creds.gateway_key ? { "X-API-Key": creds.gateway_key } : {}) },
         body: JSON.stringify({
           device_id: device.device_key, pin: device.arduino_pin, command: raw || data.command, value: data.value ?? null, command_id: cmd!.id,
+          logical_command: isBinary ? logicalCommand(device, wantOn) : undefined,
+          gateway_id: p!.gateway_id || undefined,
         }),
         signal: AbortSignal.timeout(8000),
       });
