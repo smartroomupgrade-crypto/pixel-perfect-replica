@@ -11,3 +11,5 @@
 
 ## Android packaging
 - Capacitor wraps the app for Android (appId com.smartroom.remote); webDir is dist/client, which gets a prerendered static index.html via the tanstackStart prerender config in vite.config.ts — keep that prerender block or the APK build breaks. Build with `bun run apk:debug`.
+
+- Gateway command naming lives in src/lib/logical.ts (FAN, LAMP, else Device ID in capitals; `KEY_ON/OFF` -> `KEY_STATE,ON|OFF`) and is shared by the local path, the remote server function and the Arduino firmware — change all three together, since a mismatch silently breaks device control.

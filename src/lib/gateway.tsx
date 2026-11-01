@@ -6,6 +6,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { sendDeviceCommand } from "./iot.functions";
 import { useProject, type Device, type Project } from "./project";
+import { logicalKey } from "./logical";
 
 export type LogicalDevice = string;
 export type LogicalCommand = string;
@@ -47,11 +48,7 @@ export function parseGatewayMessage(text: string): GatewayState {
 }
 
 function logicalFor(device: Device): LogicalDevice | null {
-  const t = device.device_type;
-  if (t === "fan") return "FAN";
-  if (t === "lamp" || t === "light") return "LAMP";
-  const key = (device.device_key || device.name || t).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
-  return key || null;
+  return logicalKey(device);
 }
 
 // ---- Local gateway service ----
@@ -191,7 +188,11 @@ export function CommunicationProvider({ children }: { children: ReactNode }) {
       for (const d of devices) {
         const ld = logicalFor(d);
         if (ld === "FAN" && st.fan) next[d.id] = st.fan;
-        if (ld === "LAMP" && st.lamp) next[d.id] = st.lamp;
+        else if (ld === "LAMP" && st.lamp) next[d.id] = st.lamp;
+        else if (ld) {
+          const v = st.sensors[`${ld}_STATE`];
+          if (v === "ON" || v === "OFF") next[d.id] = v === "ON" ? "on" : "off";
+        }
       }
       return next;
     });
