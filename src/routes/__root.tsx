@@ -14,6 +14,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider } from "@/lib/auth";
 import { Toaster } from "@/components/ui/sonner";
+import { isNativeApp } from "@/lib/native";
 
 function NotFoundComponent() {
   return (
@@ -85,8 +86,31 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+// Android Back button: go to the previous screen, or send the app to the background on the first screen.
+function useAndroidBackButton() {
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    let remove: (() => void) | undefined;
+    let cancelled = false;
+    void import("@capacitor/app").then(({ App }) =>
+      App.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else void App.minimizeApp();
+      }).then((handle) => {
+        if (cancelled) void handle.remove();
+        else remove = () => void handle.remove();
+      }),
+    );
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, []);
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  useAndroidBackButton();
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
